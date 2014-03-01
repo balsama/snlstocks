@@ -1,0 +1,6 @@
+name = "SNL Stocks"
+description = "Provides an API wrapper for the SNL Stockquote service."
+package = Other
+core = 7.x
+version = "7.x-1.0"
+

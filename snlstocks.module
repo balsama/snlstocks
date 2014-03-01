@@ -1,0 +1,117 @@
+<?php
+
+/**
+ * Implements hook_menu().
+ */
+function snlstocks_menu() {
+  $items['admin/config/services/snl-stocks'] = array(
+    'title' => 'SNL Stocks',
+    'description' => 'Configure which Block Types will automatically have their Title field set to "<none>" and hidden.',
+    'page callback' => 'snlstocks_admin',
+    'access arguments' => array('administer snl stocks'),
+    'file' => 'snlstocks.admin.inc',
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function snlstocks_permission() {
+  return array(
+    'administer snl stocks' => array(
+      'title' => t('Administer SNL Stocks'),
+      'description' => t('Configure and test the SNL Stocks API.'),
+    ),
+  );
+}
+
+/**
+ * Makes requests to SNL API and caches and returns the cached result if
+ * prudent.
+ *
+ * @param $iid
+ *   Integer - the IID of the stock to process. SNL should be able to provide
+ *   the IID. E.g. Atlantic Power is 4098671.
+ * @param $reset
+ *   Bool - Whether or not to force a cache refresh. Items will be returned
+ *   from the cache if the cache isn't stale unless this is set to TRUE.
+ * @param $url
+ *   String - The URL to make the request to. I doubt this will change.
+ *
+ * @return mixed
+ *   Object of stock quote items or FALSE on failure.
+ **/
+function snlstocks_request($iid, $reset = FALSE, $url = 'http://www.snl.com/irweblinkx/stockquote.asmx') {
+  if (($data = cache_get('snlstocks_quote_' . $iid)) && (!$reset)) {
+    // Standard drupal cache API implementation. We don't want to make a
+    // request to the API on every page load. So we see if there is a result
+    // for this IID in the cache first before calling the API.
+    //
+    // Note that this will return stale cache items if they haven't been
+    // cleaned out by cron. This changes in Drupal 8, but it's the expected
+    // behavior in D7.
+    return $data->data;
+  }
+  else {
+    // If no cache for this IID was found, make an API call to get the values
+    // and update the cache.
+    $options = array(
+      'headers' => array(
+        'Content-Type' => 'application/soap+xml; charset=utf-8',
+      ),
+      'method' => 'POST',
+      'data' => _snlstocks_request_data($iid),
+    );
+    $result = drupal_http_request($url, $options);
+    if ($result->code == '200') {
+      $data = $result->data;
+      $formatted_result = _snlstocks_xmltojson($data);
+      cache_set('snlstocks_quote_' . $iid, $formatted_result->GetCurrentQuoteResult, 'cache', REQUEST_TIME + (15 * 60));
+      return $formatted_result->GetCurrentQuoteResult;
+    }
+    else {
+      watchdog('snlstocks', 'Failed to retrieve stock info. Code %code', array('%code' => $result->code));
+      return FALSE;
+    }
+  }
+}
+
+/**
+ * Helper function to convert XML to an array.
+ */
+function _snlstocks_xmltojson($xml_string) {
+  // The XML seemed to be a bit malformed, so the next few lines are massaging
+  // it into a format that `simplexml_load_string()` will accept. Basically,
+  // we're just adding line breaks and removing all of the `soap` nodes from
+  // the tree.
+  $xml_lines = explode("\n", str_replace("><", ">\n<", $xml_string));
+  foreach ($xml_lines as $xml_line) {
+    if ((substr($xml_line, 0, 6) != '<soap:') && (substr($xml_line, 0, 7) != '</soap:')) {
+      $xml_newlines[] = chop($xml_line);
+    }
+  }
+  $xml_string = implode("\n", $xml_newlines);
+
+  // Now that our XML is formatted, convert it into an array.
+  $formatted_result = json_decode(json_encode(simplexml_load_string($xml_string)));
+  return $formatted_result;
+}
+
+/**
+ * Returns the raw XML POST data with the provided IID (that is, the data that we POST
+ * to their API).
+ */
+function _snlstocks_request_data($iid) {
+  return '<?xml version="1.0" encoding="utf-8"?>
+<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
+  <soap12:Body>
+    <GetCurrentQuote xmlns="http://www.snl.com/irweblink">
+      <IID>' . $iid . '</IID>
+    </GetCurrentQuote>
+  </soap12:Body>
+</soap12:Envelope>';
+}
+
