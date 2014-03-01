@@ -11,6 +11,9 @@ function snlstocks_admin() {
  * Builds the admin page form.
  */
 function snlstocks_test_form($form, &$form_state) {
+  $form['description']['#markup'] = '<p>Use the form below to test the results of
+    an API Call to SNL. You can also use the <code>snlstocks_request()</code> function to
+    retrieve the same results. See the README file for more information.</p>';
   $form['iid'] = array(
     '#type' => 'textfield',
     '#title' => t('Stock IID'),
@@ -57,7 +60,7 @@ function _snlstocks_html_format_results($results_object) {
   }
   $variables = array(
     'items' => $items,
-    'title' => null,
+    'title' => 'Stock Current Quote Results',
     'type' => 'ul',
   );
 
