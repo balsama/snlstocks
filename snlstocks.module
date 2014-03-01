@@ -42,7 +42,7 @@ function snlstocks_permission() {
  *   String - The URL to make the request to. I doubt this will change.
  *
  * @return mixed
- *   Array of stock quote items or FALSE on failure.
+ *   Object of stock quote items or FALSE on failure.
  **/
 function snlstocks_request($iid, $reset = FALSE, $url = 'http://www.snl.com/irweblinkx/stockquote.asmx') {
   if (($data = cache_get('snlstocks_quote_' . $iid)) && (!$reset)) {
