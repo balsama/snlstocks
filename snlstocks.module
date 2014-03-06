@@ -35,6 +35,9 @@ function snlstocks_permission() {
  * @param $iid
  *   Integer - the IID of the stock to process. SNL should be able to provide
  *   the IID. E.g. Atlantic Power is 4098671.
+ * @param $fndg
+ *   Integer - the FNDG of the stock to process. Again, SNL should be able to
+ *   provide this.
  * @param $reset
  *   Bool - Whether or not to force a cache refresh. Items will be returned
  *   from the cache if the cache isn't stale unless this is set to TRUE.
@@ -44,8 +47,8 @@ function snlstocks_permission() {
  * @return mixed
  *   Object of stock quote items or FALSE on failure.
  **/
-function snlstocks_request($iid, $reset = FALSE, $url = 'http://www.snl.com/irweblinkx/stockquote.asmx') {
-  if (($data = cache_get('snlstocks_quote_' . $iid)) && (!$reset)) {
+function snlstocks_request($iid, $fndg, $reset = FALSE, $url = 'http://www.snl.com/irweblinkx/stockquote.asmx') {
+  if (($data = cache_get('snlstocks_quote_' . $iid . '-' . $fndg)) && (!$reset)) {
     // Standard drupal cache API implementation. We don't want to make a
     // request to the API on every page load. So we see if there is a result
     // for this IID in the cache first before calling the API.
@@ -60,17 +63,17 @@ function snlstocks_request($iid, $reset = FALSE, $url = 'http://www.snl.com/irwe
     // and update the cache.
     $options = array(
       'headers' => array(
-        'Content-Type' => 'application/soap+xml; charset=utf-8',
+        'Content-Type' => 'text/xml; charset=utf-8',
       ),
       'method' => 'POST',
-      'data' => _snlstocks_request_data($iid),
+      'data' => _snlstocks_request_data($iid, $fndg),
     );
     $result = drupal_http_request($url, $options);
     if ($result->code == '200') {
       $data = $result->data;
       $formatted_result = _snlstocks_xmltojson($data);
-      cache_set('snlstocks_quote_' . $iid, $formatted_result->GetCurrentQuoteResult, 'cache', REQUEST_TIME + (15 * 60));
-      return $formatted_result->GetCurrentQuoteResult;
+      cache_set('snlstocks_quote_' . $iid . '-' . $fndg, $formatted_result->GetCurrentFndgQuoteResult, 'cache', REQUEST_TIME + (15 * 60));
+      return $formatted_result->GetCurrentFndgQuoteResult;
     }
     else {
       watchdog('snlstocks', 'Failed to retrieve stock info. Code %code', array('%code' => $result->code));
@@ -104,14 +107,15 @@ function _snlstocks_xmltojson($xml_string) {
  * Returns the raw XML POST data with the provided IID (that is, the data that we POST
  * to their API).
  */
-function _snlstocks_request_data($iid) {
+function _snlstocks_request_data($iid, $fndg) {
   return '<?xml version="1.0" encoding="utf-8"?>
-<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
-  <soap12:Body>
-    <GetCurrentQuote xmlns="http://www.snl.com/irweblink">
+<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <GetCurrentFndgQuote xmlns="http://www.snl.com/irweblink">
       <IID>' . $iid . '</IID>
-    </GetCurrentQuote>
-  </soap12:Body>
-</soap12:Envelope>';
+      <keyFndg>' . $fndg . '</keyFndg>
+    </GetCurrentFndgQuote>
+  </soap:Body>
+</soap:Envelope>';
 }
 

@@ -18,6 +18,9 @@ Install and enable the module like any other. Once the module is installed, the
 **Integer $IID:** the IID of the stock to process. SNL should be able to
 provide the IID. E.g. Atlantic Power is 4098671.
 
+**Integer $FNDG:** the IID of the stock to process. Again, SNL Should be able
+to provide this.
+
 **Boolean $reset:** Whether or not to force a cache refresh. Items will be
 returned from the cache if the cache isn't stale unless this is set to TRUE.
 
@@ -25,7 +28,7 @@ returned from the cache if the cache isn't stale unless this is set to TRUE.
 
 ###Return value
 
-Object|FALSE An array of stock quote items or FALSE on failure.
+Object|FALSE An object of stock quote items or FALSE on failure.
 
 Example Output
 --------------

@@ -21,6 +21,13 @@ function snlstocks_test_form($form, &$form_state) {
     '#required' => TRUE,
     '#default_value' => 4098671,
   );
+  $form['fndg'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Stock FNDG'),
+    '#description' => t('Enter the FNDG of the stock.'),
+    '#required' => TRUE,
+    '#default_value' => 214515,
+  );
 
   $form['submit'] = array(
     '#type' => 'submit',
@@ -38,13 +45,16 @@ function snlstocks_test_form_validate($form, &$form_state) {
   if (!is_numeric($form_state['values']['iid'])) {
     form_error($form['iid'], t('Stock IID must be numeric.'));
   }
+  if (!is_numeric($form_state['values']['fndg'])) {
+    form_error($form['fndg'], t('Stock FNDG must be numeric.'));
+  }
 }
 
 /**
  * Submit function for admin form. Gets the results for the given IID.
  */
 function snlstocks_test_form_submit($form, &$form_state) {
-  $result = snlstocks_request($form_state['values']['iid']);
+  $result = snlstocks_request($form_state['values']['iid'], $form_state['values']['fndg']);
   drupal_set_message(_snlstocks_html_format_results($result));
 }
 
